@@ -28,8 +28,8 @@ DEVICE = FILES.get_device()
 
 def select(dataset):
     #result = dataset.loc[dataset['project'] == "FFmpeg"]
-    len_filter = result.func.str.len() < 1200
-    result = result.loc[len_filter]
+    len_filter = dataset.func.str.len() < 1200
+    result = dataset.loc[len_filter]
     #print(len(result))
     #result = result.iloc[11001:]
     #print(len(result))
