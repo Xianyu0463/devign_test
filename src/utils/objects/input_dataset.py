@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset as TorchDataset
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 
 
 class InputDataset(TorchDataset):

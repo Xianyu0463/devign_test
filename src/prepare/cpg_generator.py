@@ -35,7 +35,14 @@ def joern_parse(joern_path, input_path, output_path, file_name):
 
 
 def joern_create(joern_path, in_path, out_path, cpg_files):
-    joern_process = subprocess.Popen(["./" + joern_path + "joern"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    env = os.environ.copy()
+    env["TERM"] = "dumb"
+    env["JAVA_OPTS"] = "-Djline.terminal=jline.UnsupportedTerminal"
+    joern_process = subprocess.Popen(
+        ["./" + joern_path + "joern", "--nocolors"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=env
+    )
     json_files = []
     for cpg_file in cpg_files:
         json_file_name = f"{cpg_file.split('.')[0]}.json"
