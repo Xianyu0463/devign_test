@@ -54,14 +54,18 @@ def joern_create(joern_path, in_path, out_path, cpg_files):
             import_cpg_cmd = f"importCpg(\"{os.path.abspath(in_path)}/{cpg_file}\")\r".encode()
             script_path = f"{os.path.dirname(os.path.abspath(joern_path))}/graph-for-funcs.sc"
             run_script_cmd = f"cpg.runScript(\"{script_path}\").toString() |> \"{json_out}\"\r".encode()
+            time.sleep(15)
             joern_process.stdin.write(import_cpg_cmd)
-            print(joern_process.stdout.readline().decode())
+            joern_process.stdin.flush()
+            time.sleep(15)
             joern_process.stdin.write(run_script_cmd)
-            print(joern_process.stdout.readline().decode())
+            joern_process.stdin.flush()
+            time.sleep(60)
             joern_process.stdin.write("delete\r".encode())
-            print(joern_process.stdout.readline().decode())
+            joern_process.stdin.flush()
+            time.sleep(5)
     try:
-        outs, errs = joern_process.communicate(timeout=60)
+        outs, errs = joern_process.communicate(timeout=7200)
     except subprocess.TimeoutExpired:
         joern_process.kill()
         outs, errs = joern_process.communicate()
