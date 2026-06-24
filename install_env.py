@@ -1,15 +1,19 @@
 import os
 import subprocess
 
-# 自动定位devign_test目录
+# 自动cd到devign_test目录
 BASE = os.getcwd()
-for candidate in ['/content/devign_test/devign_test', '/content/devign_test']:
-    if os.path.exists(candidate):
-        BASE = candidate
-        break
+DEVIGN = os.path.join(BASE, "devign_test")
 
-os.chdir(BASE)
-print(f"📁 当前目录: {BASE}")
+if os.path.exists(DEVIGN):
+    os.chdir(DEVIGN)
+    BASE = DEVIGN
+elif os.path.basename(BASE) == "devign_test":
+    pass  # 已经在devign_test目录里
+else:
+    print(f"⚠️ 找不到devign_test目录，使用当前目录: {BASE}")
+
+print(f"📁 当前目录: {os.getcwd()}")
 
 # 安装Python依赖
 os.system("pip install pandas scikit-learn gensim==4.3.3 cpgclientlib")
