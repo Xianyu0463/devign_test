@@ -54,14 +54,30 @@ def joern_create(joern_path, in_path, out_path, cpg_files):
             import_cpg_cmd = f"importCpg(\"{os.path.abspath(in_path)}/{cpg_file}\")\r".encode()
             script_path = f"{os.path.dirname(os.path.abspath(joern_path))}/graph-for-funcs.sc"
             run_script_cmd = f"cpg.runScript(\"{script_path}\").toString() |> \"{json_out}\"\r".encode()
+            def wait_for_prompt(proc, timeout=300):
+                import select
+                output = b""
+                while True:
+                    ready = select.select([proc.stdout], [], [], timeout)
+                    if ready[0]:
+                        chunk = proc.stdout.read(1)
+                        output += chunk
+                        if output.endswith(b"joern> "):
+                            return output.decode(errors="ignore")
+                    else:
+                        return output.decode(errors="ignore")
+            wait_for_prompt(joern_process)
             joern_process.stdin.write(import_cpg_cmd)
-            print(joern_process.stdout.readline().decode())
+            joern_process.stdin.flush()
+            wait_for_prompt(joern_process)
             joern_process.stdin.write(run_script_cmd)
-            print(joern_process.stdout.readline().decode())
+            joern_process.stdin.flush()
+            wait_for_prompt(joern_process, timeout=600)
             joern_process.stdin.write("delete\r".encode())
-            print(joern_process.stdout.readline().decode())
+            joern_process.stdin.flush()
+            wait_for_prompt(joern_process)
     try:
-        outs, errs = joern_process.communicate(timeout=60)
+        outs, errs = joern_process.communicate(timeout=7200)
     except subprocess.TimeoutExpired:
         joern_process.kill()
         outs, errs = joern_process.communicate()
