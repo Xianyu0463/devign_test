@@ -30,14 +30,15 @@ import io.shiftleft.semanticcpg.language.types.expressions.generalizations.CfgNo
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
 import io.shiftleft.codepropertygraph.generated.NodeTypes
 import io.shiftleft.codepropertygraph.generated.nodes
-import io.shiftleft.dataflowengineoss.language._
+import io.shiftleft.dataflowengine.language._
 import io.shiftleft.semanticcpg.language._
 import io.shiftleft.semanticcpg.language.types.expressions.Call
 import io.shiftleft.semanticcpg.language.types.structure.Local
 import io.shiftleft.codepropertygraph.generated.nodes.MethodParameterIn
 
-import overflowdb._
-import overflowdb.traversal._
+import gremlin.scala._
+import org.apache.tinkerpop.gremlin.structure.Edge
+import org.apache.tinkerpop.gremlin.structure.VertexProperty
 
 final case class GraphForFuncsFunction(function: String,
                                        file: String,
@@ -47,12 +48,12 @@ final case class GraphForFuncsFunction(function: String,
                                        PDG: List[nodes.AstNode])
 final case class GraphForFuncsResult(functions: List[GraphForFuncsFunction])
 
-implicit val encodeEdge: Encoder[OdbEdge] =
-  (edge: OdbEdge) =>
+implicit val encodeEdge: Encoder[Edge] =
+  (edge: Edge) =>
     Json.obj(
       ("id", Json.fromString(edge.toString)),
-      ("in", Json.fromString(edge.inNode.toString)),
-      ("out", Json.fromString(edge.outNode.toString))
+      ("in", Json.fromString(edge.inVertex().toString)),
+      ("out", Json.fromString(edge.outVertex().toString))
     )
 
 implicit val encodeNode: Encoder[nodes.AstNode] =
@@ -61,10 +62,10 @@ implicit val encodeNode: Encoder[nodes.AstNode] =
       ("id", Json.fromString(node.toString)),
       ("edges",
         Json.fromValues((node.inE("AST", "CFG").l ++ node.outE("AST", "CFG").l).map(_.asJson))),
-      ("properties", Json.fromValues(node.propertyMap.asScala.toList.map { case (key, value) =>
+      ("properties", Json.fromValues(node.properties().asScala.toList.map { p: VertexProperty[_] =>
         Json.obj(
-          ("key", Json.fromString(key)),
-          ("value", Json.fromString(value.toString))
+          ("key", Json.fromString(p.key())),
+          ("value", Json.fromString(p.value().toString))
         )
       }))
     )
@@ -76,22 +77,24 @@ implicit val encodeFuncResult: Encoder[GraphForFuncsResult] = deriveEncoder
   GraphForFuncsResult(
     cpg.method.map { method =>
       val methodName = method.fullName
-      val methodId = method.toString
       val methodFile = method.location.filename
-      val methodVertex: Vertex = method //TODO MP drop as soon as we have the remainder of the below in ODB graph api
+      val methodId = method.toString
 
       val astChildren = method.astMinusRoot.l
-      val cfgChildren = method.out(EdgeTypes.CONTAINS).asScala.collect { case node: nodes.CfgNode => node }.toList
+
+      val cfgChildren = new NodeSteps(
+        method.out(EdgeTypes.CONTAINS).filterOnEnd(_.isInstanceOf[nodes.CfgNode]).cast[nodes.CfgNode]
+      ).l
 
       val local = new NodeSteps(
-        methodVertex
+        method
           .out(EdgeTypes.CONTAINS)
           .hasLabel(NodeTypes.BLOCK)
           .out(EdgeTypes.AST)
           .hasLabel(NodeTypes.LOCAL)
           .cast[nodes.Local])
       val sink = local.evalType(".*").referencingIdentifiers.dedup
-      val source = new NodeSteps(methodVertex.out(EdgeTypes.CONTAINS).hasLabel(NodeTypes.CALL).cast[nodes.Call]).nameNot("<operator>.*").dedup
+      val source = new NodeSteps(method.out(EdgeTypes.CONTAINS).hasLabel(NodeTypes.CALL).cast[nodes.Call]).nameNot("<operator>.*").dedup
 
       val pdgChildren = sink
         .reachableByFlows(source)
